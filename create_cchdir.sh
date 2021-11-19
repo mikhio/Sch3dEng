@@ -1,5 +1,5 @@
 find src -type d > dirs.txt
-cd cache
+cd cpp_cache
 xargs mkdir -p < ../dirs.txt
 cd ..
 rm -rf dirs.txt

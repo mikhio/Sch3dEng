@@ -31,6 +31,7 @@ void VertexArray::AddBuffer(const VertexBuffer& vb, const VertexBufferLayout& la
 	vb.Bind();
 	const auto& elements = layout.GetElements();
 	unsigned int offset = 0;
+	m_LastStride = layout.GetStride();
 	for (unsigned int i = 0; i < elements.size(); i++)
 	{
 		const auto& element = elements[i];

@@ -33,5 +33,5 @@ $(APPPATH): $(OBJECTS)
 
 -include $(DEPENDS)
 
-$(CCHPATH)/%.o: %.cpp Makefile
+$(CCHPATH)/$(SRCPATH)/%.o: $(SRCPATH)/%.cpp Makefile
 	$(CXX) $(WARNING) $(INFLAGS) $(CXXFLAGS) -MMD -MP -c $< -o $@

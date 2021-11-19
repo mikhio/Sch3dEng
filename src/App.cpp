@@ -23,6 +23,25 @@
 #include "vendor/imgui/imgui_impl_glfw.h"
 #include "vendor/imgui/imgui_impl_opengl3.h"
 
+
+
+struct MouseState {
+    double xpos, ypos;
+    bool rightBTN;
+    bool leftBTN;
+};
+
+struct MouseCameraController {
+    float clickedX, clickedY;
+    float sens;
+    bool isShiftClicked;
+
+    glm::vec3 clickedTrans;
+    glm::mat4 clickedRot;
+};
+
+
+
 int main(void)
 {
     try {
@@ -43,12 +62,12 @@ int main(void)
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-        unsigned int WindowWidth = 800;
-        unsigned int WindowHeight = 600;
+        float WindowWidth = 800.f;
+        float WindowHeight = 600.f;
 
-        // float AspectRatio = (float)WindowWidth / (float)WindowHeight;
+        float AspectRatio = (float)WindowWidth / (float)WindowHeight;
 
-        window = glfwCreateWindow(WindowWidth, WindowHeight, "3DEngGL", NULL, NULL);
+        window = glfwCreateWindow((unsigned int)WindowWidth, (unsigned int)WindowHeight, "3DEngGL", NULL, NULL);
 
         if (!window)
         {
@@ -68,48 +87,151 @@ int main(void)
             std::cout << "ERROR: GLEW didn't init" << std::endl;
         }
 
+        // glfwSetCursorPosCallback(window, cursor_position_callback);
+        // glfwSetMouseButtonCallback(window, mouse_button_callback);
+
+
         GLCall(std::cout << "INFO: OpenGL" << glGetString(GL_VERSION) << std::endl);
 
         float positions[] = {
-            -50.f, -50.f, 0.0f, 0.0f,
-             50.f, -50.f, 1.0f, 0.0f,
-             50.f,  50.f, 1.0f, 1.0f,
-            -50.f,  50.f, 0.0f, 1.0f,
+            -1.f, -1.f,  1.f, -1.f, -1.f,  1.f,
+             1.f, -1.f,  1.f,  1.f, -1.f,  1.f,
+             1.f,  1.f,  1.f,  1.f,  1.f,  1.f,
+            -1.f,  1.f,  1.f, -1.f,  1.f,  1.f,
+
+            -1.f, -1.f, -1.f, -1.f, -1.f, -1.f,
+             1.f, -1.f, -1.f,  1.f, -1.f, -1.f,
+             1.f,  1.f, -1.f,  1.f,  1.f, -1.f,
+            -1.f,  1.f, -1.f, -1.f,  1.f, -1.f,
+        };
+
+        float CubeMesh[] = {
+            // FRONT
+            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f,
+             1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f,
+             1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f,
+
+             1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f,
+            -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f,
+            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f,
+
+            // BACK
+            -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f,
+             1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 
+             1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 
+             1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 
+            -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 
+            -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f,
+
+            // RIGHT
+             1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f,
+             1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f,
+             1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,
+             1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,
+             1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,
+             1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 
+
+             // LEFT
+            -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f,
+            -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f,
+            -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f,
+            -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f,
+            -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f,
+            -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f,
+
+            // BOTTOM
+            -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f,
+             1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f,
+             1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f,
+             1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f,
+            -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f,
+            -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f,
+
+            // TOP
+            -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+             1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+             1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+             1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+            -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+            -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f
+        };
+
+        unsigned int wireframeIndices[] = {
+            // FRONT
+            0, 1, 1, 2, 2, 0,
+            2, 3, 3, 0, 0, 2,
+
+            // RIGHT
+            1, 5, 5, 6, 6, 1,
+            6, 2, 2, 1, 1, 6,
+
+            // BACK
+            5, 4, 4, 7, 7, 5,
+            7, 6, 6, 5, 5, 7,
+
+            // LEFT
+            4, 0, 0, 3, 3, 4,
+            3, 7, 7, 4, 4, 3,
+
+            // BOTTOM
+            4, 5, 5, 1, 1, 4,
+            1, 0, 0, 4, 4, 1,
+
+            // TOP
+            3, 2, 2, 6, 6, 3,
+            6, 7, 7, 3, 3, 6
         };
 
         unsigned int indices[] = {
+            // FRONT
             0, 1, 2,
-            2, 3, 0
+            2, 3, 0,
+
+            // RIGHT
+            1, 5, 6,
+            6, 2, 1,
+
+            // BACK
+            5, 4, 7,
+            7, 6, 5,
+
+            // LEFT
+            4, 0, 3,
+            3, 7, 4,
+
+            // BOTTOM
+            4, 5, 1,
+            1, 0, 4,
+
+            // TOP
+            3, 2, 6,
+            6, 7, 3
         };
 
-        GLCall(glEnable(GL_BLEND));
-        GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+        // GLCall(glEnable(GL_BLEND));
+        // GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+
+        MouseCameraController CamController;
+        MouseState MainMouse;
+
+
+        GLCall(glEnable(GL_DEPTH_TEST));
+        GLCall(glDepthFunc(GL_LESS));
+
 
         VertexArray va;
-        VertexBuffer vb(positions, 4 * 4 * sizeof(float));
-
+        VertexBuffer vb(CubeMesh, sizeof(CubeMesh));
 
         VertexBufferLayout layout;
-        layout.Push<float>(2);
-        layout.Push<float>(2);
+        layout.Push<float>(3);
+        layout.Push<float>(3);
         va.AddBuffer(vb, layout);
 
-        IndexBuffer ib(indices, 6);
-        unsigned int ibo;
-        GLCall(glGenBuffers(1, &ibo));
-        GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo));
-        GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW));
+        IndexBuffer ib(indices, sizeof(indices)/sizeof(*indices));
 
-        glm::mat4 proj = glm::ortho(0.f, (float)WindowWidth, 0.f, (float)WindowHeight, -1.0f, 1.0f);
-        glm::mat4 view = glm::translate(glm::mat4(1.f), glm::vec3(0, 0, 0));
+        glm::mat4 proj = glm::perspective(45.f, AspectRatio, 1.0f, 150.f);
 
         Shader shader("./shaders/Basic.shader");
-
-        Texture texture("./textures/R2-D2_Droid.png");
-        texture.Bind();
-
-        shader.Bind();
-        shader.SetUniform1i("u_Texture", 0);
 
         va.Unbind();
         vb.Unbind();
@@ -125,14 +247,16 @@ int main(void)
         ImGui_ImplGlfw_InitForOpenGL(window, true);
         ImGui_ImplOpenGL3_Init(glsl_version);
 
-        // bool show_demo_window = true;
-        // bool show_another_window = false;
-        // ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-        glm::vec3 translationA(200.f, 200.f, 0);
-        glm::vec3 translationB(400.f, 200.f, 0);
+        float angles[] = {0.f, 0.f, 0.f};
 
-        float t = 0.0f;
+        glm::mat4 rotation(1.f);
+        glm::vec3 translation(0.f, 0.f, 0.f);
+
+        CamController.clickedTrans = translation;
+        CamController.clickedRot = rotation;
+        CamController.sens = 3.f;
+
 
         while (!glfwWindowShouldClose(window))
         {
@@ -142,29 +266,67 @@ int main(void)
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
+            glm::mat4 view = glm::translate(glm::mat4(1.f), glm::vec3(0, 0, -4.f));
+            view *= glm::translate(glm::mat4(1.f), translation);
+            view *= rotation;
+
+            glm::mat4 model = glm::mat4(1.f);
+
+            model = glm::rotate(model, glm::radians(angles[0]), glm::vec3(glm::vec4(1.f, 0.f, 0.f, 0.f)*(model)));
+            model = glm::rotate(model, glm::radians(angles[1]), glm::vec3(glm::vec4(0.f, 1.f, 0.f, 0.f)*(model)));
+            model = glm::rotate(model, glm::radians(angles[2]), glm::vec3(glm::vec4(0.f, 0.f, 1.f, 0.f)*(model)));
+            
+
+            glm::mat4 mvp = proj * view * model;
+
             shader.Bind();
+            shader.SetUniformMat4f("u_MVP", mvp);
+            shader.SetUniformMat4f("u_Model", model);
 
+
+            // renderer.Draw(va, ib, shader);
+            renderer.Draw(va, vb, shader);
+
+            glfwGetCursorPos(window, &MainMouse.xpos, &MainMouse.ypos);
+
+            int leftBtnState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+
+            if (leftBtnState == GLFW_PRESS && MainMouse.leftBTN == GLFW_RELEASE)
             {
-                glm::mat4 model = glm::translate(glm::mat4(1.f), translationA);
-                glm::mat4 mvp = proj * view * model;
-                shader.SetUniformMat4f("u_MVP", mvp);
+                CamController.clickedX = MainMouse.xpos;
+                CamController.clickedY = MainMouse.ypos;
+                CamController.clickedTrans = translation;
+                CamController.clickedRot = rotation;
 
-                renderer.Draw(va, ib, shader);
+                CamController.isShiftClicked = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS;
             }
 
-            {
-                glm::mat4 model = glm::translate(glm::mat4(1.f), translationB);
-                glm::mat4 mvp = proj * view * model;
-                shader.SetUniformMat4f("u_MVP", mvp);
+            MainMouse.leftBTN = leftBtnState;
 
-                renderer.Draw(va, ib, shader);
+            if (MainMouse.leftBTN == GLFW_PRESS)
+            {
+                if (CamController.isShiftClicked)
+                {
+                    glm::vec2 movVec((float)MainMouse.xpos - CamController.clickedX, CamController.clickedY - (float)MainMouse.ypos);
+                    glm::vec2 axis = glm::vec2(glm::vec4(movVec, 0.f, 0.f) * glm::rotate(glm::mat4(1.f), glm::radians(90.f), glm::vec3(0.f, 0.f, -1.f)));
+
+                    float angle = CamController.sens * glm::length(glm::vec2(movVec.x/WindowWidth, movVec.y/WindowHeight));
+
+                    if (angle != 0)
+                        rotation = glm::rotate(CamController.clickedRot, angle, glm::vec3(glm::vec4(axis, 0.f, 0.f) * CamController.clickedRot));
+                } else
+                {
+                    translation = CamController.clickedTrans;
+                    translation.x += CamController.sens * ((float)MainMouse.xpos - CamController.clickedX) / WindowWidth;
+                    translation.y += CamController.sens * (CamController.clickedY - (float)MainMouse.ypos) / WindowHeight;
+                }
             }
 
-            {
-                // static float f = 0.0f;
 
-                ImGui::SliderFloat3("Translation A", &translationA.x, 0.0f, (float)WindowWidth);
-                ImGui::SliderFloat3("Translation B", &translationB.x, 0.0f, (float)WindowWidth);
+
+            {
+                ImGui::SliderFloat3("Translation", &translation.x, -10.0f, 10.f);
+                ImGui::SliderFloat3("Rotation", angles, 0.0f, 360.f);
                 ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             }
 
@@ -176,7 +338,6 @@ int main(void)
             glfwSwapBuffers(window);
 
             glfwPollEvents();
-            t += 0.01f;
         }
 
         ImGui_ImplOpenGL3_Shutdown();
